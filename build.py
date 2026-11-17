@@ -16,8 +16,7 @@ def clean_num(val, is_float=False):
 
 def process_parcoursup():
     if not os.path.exists(CSV_FILE):
-        print(f"❌ ERREUR : Le fichier {CSV_FILE} est introuvable.")
-        return
+        raise FileNotFoundError(f"❌ ERREUR : Le fichier {CSV_FILE} est introuvable.")
 
     data = []
     with open(CSV_FILE, mode='r', encoding='utf-8-sig') as f:
@@ -26,88 +25,61 @@ def process_parcoursup():
         
         for index, row in enumerate(reader):
             try:
-                # Variables d'extraction par défaut
-                etab = "Inconnu"
-                ville = ""
-                acad = ""
-                filiere = "Formation"
-                uid = str(index)
-                cap = 0
-                voeux = 0
-                taux_acc = 0.0
-                boursiers = 0.0
+                # Extraction propre basée sur les vrais libellés OpenDataSoft
+                etab = str(row.get('Établissement') or row.get('g_ea_lib') or 'Inconnu').strip()
+                ville = str(row.get('Ville de l\'établissement') or row.get('ville_etab') or '').strip()
+                # Évite d'afficher un code numérique (ex: 90.0) si c'est le département
+                if ville.replace('.', '').isdigit():
+                    ville = str(row.get('Département de l’établissement') or '').strip()
                 
-                mentions = {
-                    "tb_fel": 0.0,
-                    "tb": 0.0,
-                    "b": 0.0,
-                    "ab": 0.0,
-                    "sans": 0.0
-                }
+                acad = str(row.get('Académie de l’établissement') or row.get('academie_rectorat') or '').strip()
+                filiere = str(row.get('Filière de formation') or row.get('fil_lib_precise') or 'Formation').strip()
+                uid = str(row.get('Code UAI de l\'établissement') or row.get('g_ea_uai') or index)
 
-                # Analyse dynamique et intelligente de chaque colonne de la ligne
+                # Capacité et vœux ciblés précisément
+                cap = clean_num(row.get('Capacité d\'accueil de la formation') or row.get('cap_cap'))
+                voeux = clean_num(row.get('Nombre total de vœux formulés') or row.get('voe_tot'))
+                taux_acc = clean_num(row.get('Taux d’accès') or row.get('taux_acc'), is_float=True)
+                
+                # Boursiers
+                boursiers = 0.0
                 for k, v in row.items():
-                    if v is None: continue
+                    if 'boursier' in k.lower() and v:
+                        val_f = clean_num(v, is_float=True)
+                        if val_f <= 100.0:
+                            boursiers = val_f
+                            break
+
+                mentions = {"tb_fel": 0.0, "tb": 0.0, "b": 0.0, "ab": 0.0, "sans": 0.0}
+                for k, v in row.items():
+                    if not v: continue
                     k_low = k.lower()
-                    val_str = str(v).strip()
-
-                    # Identifiants & Infos générales
-                    if ('établissement' in k_low or 'etab' in k_low) and 'ville' not in k_low and 'acad' not in k_low and 'statut' not in k_low:
-                        if etab == "Inconnu" or len(val_str) > len(etab): etab = val_str
-                    elif 'ville' in k_low and not ville:
-                        ville = val_str
-                    elif 'académie' in k_low or 'academie' in k_low:
-                        acad = val_str
-                    elif 'filière' in k_low or 'filiere' in k_low:
-                        if len(val_str) > len(filiere) or filiere == "Formation": filiere = val_str
-                    elif 'uai' in k_low:
-                        uid = val_str
-
-                    # Indicateurs numériques
-                    elif 'capacité' in k_low or 'cap_cap' in k_low:
-                        cap = clean_num(val_str)
-                    elif 'vœux' in k_low or 'voeux' in k_low or 'voe_tot' in k_low:
-                        voeux = clean_num(val_str)
-                    elif 'taux d’accès' in k_low or 'taux d\'accès' in k_low or 'taux_acc' in k_low:
-                        taux_acc = clean_num(val_str, is_float=True)
-                    elif 'boursier' in k_low and ('part' in k_low or '%' in k_low or 'pct' in k_low or 'taux' in k_low):
-                        val_f = clean_num(val_str, is_float=True)
-                        if val_f <= 100.0: boursiers = val_f
-
-                    # Mentions au bac
-                    elif 'félicitation' in k_low or 'fel' in k_low:
-                        mentions["tb_fel"] = clean_num(val_str, is_float=True)
-                    elif ('très bien' in k_low or 'tres bien' in k_low) and 'sans' not in k_low and 'félicitation' not in k_low:
-                        mentions["tb"] = clean_num(val_str, is_float=True)
-                    elif 'mention bien' in k_low or ' en b ' in k_low or k_low.endswith(' b '):
-                        mentions["b"] = clean_num(val_str, is_float=True)
-                    elif 'mention assez' in k_low or ' en ab ' in k_low:
-                        mentions["ab"] = clean_num(val_str, is_float=True)
-                    elif 'sans mention' in k_low:
-                        mentions["sans"] = clean_num(val_str, is_float=True)
+                    if 'félicitation' in k_low: mentions["tb_fel"] = clean_num(v, is_float=True)
+                    elif ('très bien' in k_low or 'tres bien' in k_low) and 'sans' not in k_low: mentions["tb"] = clean_num(v, is_float=True)
+                    elif 'mention bien' in k_low or ' en b ' in k_low: mentions["b"] = clean_num(v, is_float=True)
+                    elif 'mention assez' in k_low or ' en ab ' in k_low: mentions["ab"] = clean_num(v, is_float=True)
+                    elif 'sans mention' in k_low: mentions["sans"] = clean_num(v, is_float=True)
 
                 item = {
-                    "id": uid,
-                    "etab": etab,
-                    "ville": ville,
-                    "acad": acad,
-                    "filiere": filiere,
-                    "cap": cap,
-                    "voeux": voeux,
-                    "taux_acc": taux_acc,
-                    "boursiers": boursiers,
-                    "mentions": mentions
+                    "id": uid, "etab": etab, "ville": ville, "acad": acad, "filiere": filiere,
+                    "cap": cap, "voeux": voeux, "taux_acc": taux_acc, "boursiers": boursiers, "mentions": mentions
                 }
-
-                # Trace ciblée pour vérifier l'ESTACA dans les logs de l'action
-                if index < 2 or "estaca" in etab.lower():
-                    print(f"🔍 TRACE [{index}] {etab} | Cap: {cap} | Vœux: {voeux} | Taux Acc: {taux_acc}% | Boursiers: {boursiers}% | Mentions: {mentions}")
-
                 data.append(item)
-            except Exception as e:
+            except Exception:
                 continue
 
+    # --- TEST UNITAIRE DE VALIDATION (CI/CD Safety Guard) ---
     print(f"📊 Total formations converties : {len(data)}")
+    if len(data) == 0:
+        raise ValueError("❌ ERREUR TEST UNITAIRE : Aucune formation extraite du CSV !")
+    
+    total_cap = sum(item["cap"] for item in data)
+    print(f"🔍 Somme totale des capacités d'accueil : {total_cap}")
+    if total_cap < 1000:
+        raise ValueError(f"❌ ERREUR TEST UNITAIRE : Capacité totale anormale ({total_cap}). L'extraction des capacités a échoué.")
+
+    print("✅ TEST UNITAIRE VALIDÉ : Les données sont cohérentes.")
+
     with open(JSON_OUTPUT, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, separators=(',', ':'))
     print(f"✅ Fichier {JSON_OUTPUT} généré avec succès.")
