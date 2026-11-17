@@ -1,10 +1,9 @@
 import csv
 import json
-import urllib.request
 import os
 
-# URL officielle ou lecture d'un fichier local 'parcoursup.csv' présent dans le repo
-CSV_FILE = 'parcoursup.csv'
+# Mise à jour avec le nom exact du fichier officiel
+CSV_FILE = 'fr-esr-parcoursup.csv'
 JSON_OUTPUT = 'data.json'
 
 def process_parcoursup():
@@ -13,19 +12,16 @@ def process_parcoursup():
         print(f"Erreur : Le fichier {CSV_FILE} est introuvable dans le dépôt.")
         return
 
-    # Ouverture du CSV officiel (généralement séparateur point-virgule ;)
     with open(CSV_FILE, mode='r', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f, delimiter=';')
         
         for row in reader:
             try:
-                # Extraction et nettoyage des champs clés
                 etab = row.get('Établissement', row.get('g_ea_lib', 'Inconnu'))
                 ville = row.get('Ville de l\'établissement', row.get('ville_etab', ''))
                 acad = row.get('Académie', row.get('academie_rectorat', ''))
                 filiere = row.get('Filière de formation détaillée', row.get('fil_lib_precise', ''))
                 
-                # Conversion sécurisée des chiffres
                 def clean_int(val):
                     try: return int(val.replace(',', '.'))
                     except: return 0
@@ -53,10 +49,9 @@ def process_parcoursup():
                     }
                 }
                 data.append(item)
-            except Exception as e:
+            except Exception:
                 continue
 
-    # Écriture du fichier JSON compact
     with open(JSON_OUTPUT, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, separators=(',', ':'))
     print(f"Succès : {len(data)} formations exportées vers {JSON_OUTPUT}.")
