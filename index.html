@@ -23,7 +23,7 @@
             <div class="flex items-center gap-3">
                 <span class="bg-indigo-600 px-3 py-1 rounded-full text-xs font-semibold" x-text="loading ? 'Chargement...' : filteredFormations.length + ' formations'"></span>
                 <button @click="activeTab = 'search'" :class="activeTab === 'search' ? 'bg-white text-indigo-700 font-bold' : 'bg-indigo-800 text-white'" class="px-4 py-2 rounded-lg text-sm transition">Recherche</button>
-                <button @click="activeTab = 'compare'" :class="activeTab === 'compare' ? 'bg-white text-indigo-700 font-bold' : 'bg-indigo-800 text-white'" class="px-4 py-2 rounded-lg text-sm transition">Comparateur (<span x-text="compareList.length"></span>/2)</button>
+                <button @click="activeTab = 'compare'; $nextTick(() => renderCompareChart())" :class="activeTab === 'compare' ? 'bg-white text-indigo-700 font-bold' : 'bg-indigo-800 text-white'" class="px-4 py-2 rounded-lg text-sm transition">Comparateur (<span x-text="compareList.length"></span>/2)</button>
             </div>
         </div>
     </header>
@@ -82,7 +82,7 @@
                                     <tr class="hover:bg-slate-50 transition">
                                         <td class="p-4">
                                             <div class="font-semibold text-slate-900" x-text="item.etab"></div>
-                                            <div class="text-xs text-slate-500" x-text="item.ville + ' (' + item.acad + ')'"></div>
+                                            <div class="text-xs text-slate-500" x-text="item.ville + (item.acad ? ' (' + item.acad + ')' : '')"></div>
                                         </td>
                                         <td class="p-4 text-slate-700" x-text="item.filiere"></td>
                                         <td class="p-4 text-center font-medium" x-text="item.cap"></td>
@@ -110,17 +110,17 @@
                 </div>
             </div>
 
-            <!-- TAB 2 : COMPARE 2 ESTABLISHMENTS -->
+            <!-- TAB 2 : COMPARE 2 ESTABLISHMENTS WITH GRAPH -->
             <div x-show="activeTab === 'compare'" class="space-y-6">
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                     <h2 class="text-lg font-bold text-slate-900 mb-4">Comparateur Côte à Côte</h2>
                     <template x-if="compareList.length === 0">
                         <p class="text-slate-500 text-sm">Aucune formation sélectionnée. Cliquez sur le bouton "Comparer" depuis l'onglet Recherche pour en ajouter (jusqu'à 2).</p>
                     </template>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6" x-show="compareList.length > 0">
-                        <template x-for="(item, index) in compareList" :key="item.id">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6" x-show="compareList.length > 0">
+                        <template x-for="(item, index) in compareList" :key="item.id + index">
                             <div class="border rounded-xl p-5 bg-slate-50 relative">
-                                <button @click="compareList.splice(index, 1)" class="absolute top-4 right-4 text-rose-600 text-xs font-bold bg-white px-2 py-1 border rounded shadow-sm">Supprimer</button>
+                                <button @click="compareList.splice(index, 1); $nextTick(() => renderCompareChart())" class="absolute top-4 right-4 text-rose-600 text-xs font-bold bg-white px-2 py-1 border rounded shadow-sm">Supprimer</button>
                                 <h3 class="font-bold text-lg text-slate-900" x-text="item.etab"></h3>
                                 <p class="text-xs text-slate-500 mb-4" x-text="item.ville + ' • ' + item.filiere"></p>
                                 <div class="space-y-3 text-sm">
@@ -144,6 +144,14 @@
                             </div>
                         </template>
                     </div>
+
+                    <!-- Graphique comparatif des mentions -->
+                    <div x-show="compareList.length > 0" class="border-t pt-6">
+                        <h3 class="text-sm font-bold text-slate-700 mb-3">Comparaison des mentions au bac des admis</h3>
+                        <div class="relative h-80 w-full">
+                            <canvas id="compareChart"></canvas>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -155,17 +163,15 @@
         <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-xl border border-slate-100 max-h-[90vh] overflow-y-auto" @click.outside="modalOpen = false">
             <template x-if="selectedItem">
                 <div>
-                    <!-- Header -->
                     <div class="flex justify-between items-start mb-6">
                         <div>
                             <h2 class="text-xl font-bold text-slate-900" x-text="selectedItem.etab"></h2>
                             <p class="text-sm text-indigo-600 font-medium" x-text="selectedItem.filiere"></p>
-                            <p class="text-xs text-slate-500" x-text="selectedItem.ville + ' (' + selectedItem.acad + ')'"></p>
+                            <p class="text-xs text-slate-500" x-text="selectedItem.ville + (selectedItem.acad ? ' (' + selectedItem.acad + ')' : '')"></p>
                         </div>
                         <button @click="modalOpen = false" class="text-slate-400 hover:text-slate-600 text-lg font-bold">&times;</button>
                     </div>
 
-                    <!-- Indicateurs clés -->
                     <div class="grid grid-cols-3 gap-4 mb-6 text-center">
                         <div class="bg-slate-50 p-3 rounded-xl border">
                             <div class="text-xs text-slate-500 font-medium">Capacité</div>
@@ -181,7 +187,6 @@
                         </div>
                     </div>
 
-                    <!-- Graphique Histogramme -->
                     <div class="border-t pt-4">
                         <h4 class="text-sm font-bold text-slate-700 mb-3">Répartition des mentions au bac des admis (du plus bas au plus haut)</h4>
                         <div class="relative h-64 w-full">
@@ -189,7 +194,6 @@
                         </div>
                     </div>
 
-                    <!-- Footer Actions -->
                     <div class="mt-6 pt-4 border-t flex justify-end gap-3">
                         <button @click="modalOpen = false" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition">Fermer</button>
                         <button @click="toggleCompare(selectedItem); modalOpen = false" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition">Comparer cet établissement</button>
@@ -214,19 +218,14 @@
                 modalOpen: false,
                 selectedItem: null,
                 chartInstance: null,
+                compareChartInstance: null,
 
                 async init() {
-                    console.log("🔄 Début du chargement de data.json...");
                     try {
                         const response = await fetch('data.json');
-                        if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
                         this.formations = await response.json();
-                        console.log(`✅ Données chargées avec succès : ${this.formations.length} formations.`);
-                        if (this.formations.length > 0) {
-                            console.log("🔍 Exemple de formation chargée (index 0) :", this.formations[0]);
-                        }
                     } catch (e) {
-                        console.error('❌ ERREUR lors du chargement de data.json :', e);
+                        console.error('Erreur chargement data.json:', e);
                     } finally {
                         this.loading = false;
                     }
@@ -274,10 +273,12 @@
                         }
                         this.compareList.push(item);
                     }
+                    if (this.activeTab === 'compare') {
+                        this.$nextTick(() => this.renderCompareChart());
+                    }
                 },
 
                 openModal(item) {
-                    console.log("🔍 Ouverture de la modale pour :", item.etab, item);
                     this.selectedItem = item;
                     this.modalOpen = true;
                     this.$nextTick(() => this.renderChart(item));
@@ -285,17 +286,11 @@
 
                 renderChart(item) {
                     const canvasEl = document.getElementById('mentionChart');
-                    if (!canvasEl) {
-                        console.error("❌ Élément canvas 'mentionChart' introuvable !");
-                        return;
-                    }
+                    if (!canvasEl) return;
                     const ctx = canvasEl.getContext('2d');
-                    if (this.chartInstance) {
-                        this.chartInstance.destroy();
-                    }
+                    if (this.chartInstance) this.chartInstance.destroy();
+                    
                     const m = item.mentions || {};
-                    console.log("📊 Données de mentions pour le graphique :", m);
-
                     const labels = ['Sans mention', 'Assez Bien', 'Bien', 'Très Bien', 'Très Bien + Félicitations'];
                     const dataValues = [m.sans || 0, m.ab || 0, m.b || 0, m.tb || 0, m.tb_fel || 0];
 
@@ -313,19 +308,41 @@
                         options: {
                             responsive: true,
                             maintainAspectRatio: false,
-                            plugins: {
-                                legend: { display: false }
-                            },
-                            scales: {
-                                y: {
-                                    beginAtZero: true,
-                                    ticks: {
-                                        callback: function(value) {
-                                            return value + '%';
-                                        }
-                                    }
-                                }
-                            }
+                            plugins: { legend: { display: false } },
+                            scales: { y: { beginAtZero: true, ticks: { callback: v => v + '%' } } }
+                        }
+                    });
+                },
+
+                renderCompareChart() {
+                    const canvasEl = document.getElementById('compareChart');
+                    if (!canvasEl) return;
+                    const ctx = canvasEl.getContext('2d');
+                    if (this.compareChartInstance) this.compareChartInstance.destroy();
+
+                    if (this.compareList.length === 0) return;
+
+                    const labels = ['Sans mention', 'Assez Bien', 'Bien', 'Très Bien', 'Très Bien + Félicitations'];
+                    const colors = ['#4f46e5', '#0ea5e9'];
+
+                    const datasets = this.compareList.map((item, idx) => {
+                        const m = item.mentions || {};
+                        return {
+                            label: item.etab + ' (' + item.filiere.substring(0, 25) + '...)',
+                            data: [m.sans || 0, m.ab || 0, m.b || 0, m.tb || 0, m.tb_fel || 0],
+                            backgroundColor: colors[idx % colors.length],
+                            borderRadius: 4
+                        };
+                    });
+
+                    this.compareChartInstance = new Chart(ctx, {
+                        type: 'bar',
+                        data: { labels: labels, datasets: datasets },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { position: 'bottom' } },
+                            scales: { y: { beginAtZero: true, ticks: { callback: v => v + '%' } } }
                         }
                     });
                 }
