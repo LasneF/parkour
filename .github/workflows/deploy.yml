@@ -27,7 +27,7 @@ jobs:
 
       - name: Run build script
         run: |
-          if [ -f "build.py" ] && [ -f "parcoursup.csv" ]; then
+          if [ -f "build.py" ] && [ -f "fr-esr-parcoursup.csv" ]; then
             python build.py
           fi
 
