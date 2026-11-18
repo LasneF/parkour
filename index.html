@@ -20,10 +20,8 @@
                 <h1 class="text-2xl font-bold">Parcoursup Explorer Pro</h1>
                 <p class="text-indigo-200 text-sm">Consultation et comparaison des formations officielles</p>
             </div>
-            <div class="flex items-center gap-3">
+            <div>
                 <span class="bg-indigo-600 px-3 py-1 rounded-full text-xs font-semibold" x-text="loading ? 'Chargement...' : filteredFormations.length + ' formations'"></span>
-                <button @click="activeTab = 'search'" :class="activeTab === 'search' ? 'bg-white text-indigo-700 font-bold' : 'bg-indigo-800 text-white'" class="px-4 py-2 rounded-lg text-sm transition">Recherche</button>
-                <button @click="activeTab = 'compare'; $nextTick(() => renderCompareChart())" :class="activeTab === 'compare' ? 'bg-white text-indigo-700 font-bold' : 'bg-indigo-800 text-white'" class="px-4 py-2 rounded-lg text-sm transition">Comparateur (<span x-text="compareList.length"></span>/2)</button>
             </div>
         </div>
     </header>
@@ -39,119 +37,129 @@
             </div>
         </template>
 
+        <div x-show="!loading && error" class="rounded-xl border border-rose-200 bg-rose-50 p-6 text-rose-800" role="alert">
+            <h2 class="font-bold">Les données n'ont pas pu être chargées.</h2>
+            <p class="mt-2 text-sm" x-text="error"></p>
+        </div>
+
         <!-- Content loaded -->
-        <div x-show="!loading">
+        <div x-show="!loading && !error">
 
-            <!-- TAB 1 : SEARCH & EXPLORE -->
-            <div x-show="activeTab === 'search'">
-                <!-- Filters Bar -->
-                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-500 mb-1">RECHERCHE RAPIDE</label>
-                        <input type="text" x-model.debounce.300ms="searchQuery" placeholder="Établissement, ville, filière..." class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-500 mb-1">FILTRER PAR ACADÉMIE</label>
-                        <select x-model="selectedAcad" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                            <option value="">Toutes les académies</option>
-                            <template x-for="acad in academies" :key="acad">
-                                <option x-text="acad" :value="acad"></option>
-                            </template>
-                        </select>
-                    </div>
-                    <div class="flex items-end">
-                        <button @click="searchQuery = ''; selectedAcad = ''" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium py-2 rounded-lg text-sm transition">Réinitialiser les filtres</button>
-                    </div>
+            <!-- SEARCH & EXPLORE -->
+            <!-- Filters Bar -->
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 mb-1">RECHERCHE RAPIDE</label>
+                    <input type="text" x-model.debounce.300ms="searchQuery" @input="page = 1" placeholder="Établissement, ville, filière..." class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                 </div>
-
-                <!-- Results Table -->
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse">
-                            <thead>
-                                <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b">
-                                    <th class="p-4">Établissement & Ville</th>
-                                    <th class="p-4">Filière</th>
-                                    <th class="p-4 text-center">Capacité</th>
-                                    <th class="p-4 text-center">Taux d'Accès</th>
-                                    <th class="p-4 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100 text-sm">
-                                <template x-for="item in paginatedFormations" :key="item.id + item.filiere">
-                                    <tr class="hover:bg-slate-50 transition">
-                                        <td class="p-4">
-                                            <div class="font-semibold text-slate-900" x-text="item.etab"></div>
-                                            <div class="text-xs text-slate-500" x-text="item.ville + (item.acad ? ' (' + item.acad + ')' : '')"></div>
-                                        </td>
-                                        <td class="p-4 text-slate-700" x-text="item.filiere"></td>
-                                        <td class="p-4 text-center font-medium" x-text="item.cap"></td>
-                                        <td class="p-4 text-center">
-                                            <span class="px-2.5 py-1 rounded-full text-xs font-bold" :class="item.taux_acc > 50 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'" x-text="item.taux_acc + '%'"></span>
-                                        </td>
-                                        <td class="p-4 text-right space-x-2">
-                                            <button @click="openModal(item)" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition">Détails</button>
-                                            <button @click="toggleCompare(item)" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition" :class="compareList.some(i => i.id === item.id && i.filiere === item.filiere) ? 'bg-rose-50 text-rose-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'" x-text="compareList.some(i => i.id === item.id && i.filiere === item.filiere) ? 'Retirer' : 'Comparer'"></button>
-                                        </td>
-                                    </tr>
-                                </template>
-                            </tbody>
-                        </table>
-                    </div>
-                    <!-- Pagination -->
-                    <div class="p-4 bg-slate-50 border-t flex justify-between items-center">
-                        <span class="text-xs text-slate-500">Affichage de <span x-text="startIndex + 1"></span> à <span x-text="Math.min(endIndex, filteredFormations.length)"></span> sur <span x-text="filteredFormations.length"></span> résultats</span>
-                        <div class="space-x-2">
-                            <button @click="page > 1 ? page-- : null" :disabled="page === 1" class="px-3 py-1 bg-white border rounded text-sm disabled:opacity-50">Précédent</button>
-                            <span class="text-sm font-medium" x-text="page + ' / ' + maxPage"></span>
-                            <button @click="page < maxPage ? page++ : null" :disabled="page >= maxPage" class="px-3 py-1 bg-white border rounded text-sm disabled:opacity-50">Suivant</button>
-                        </div>
-                    </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 mb-1">FILTRER PAR ACADÉMIE</label>
+                    <select x-model="selectedAcad" @change="page = 1" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <option value="">Toutes les académies</option>
+                        <template x-for="acad in academies" :key="acad">
+                            <option x-text="acad" :value="acad"></option>
+                        </template>
+                    </select>
+                </div>
+                <div>
+                    <label for="filiereFilter" class="block text-xs font-semibold text-slate-500 mb-1">FILIÈRE DE FORMATION</label>
+                    <select id="filiereFilter" x-model="selectedFiliere" @change="page = 1" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <option value="">Toutes les filières</option>
+                        <template x-for="filiere in filieres" :key="filiere">
+                            <option x-text="filiere" :value="filiere"></option>
+                        </template>
+                    </select>
+                </div>
+                <div class="flex items-end">
+                    <button @click="searchQuery = ''; selectedAcad = ''; selectedFiliere = ''; page = 1" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium py-2 rounded-lg text-sm transition">Réinitialiser les filtres</button>
                 </div>
             </div>
 
-            <!-- TAB 2 : COMPARE 2 ESTABLISHMENTS WITH GRAPH -->
-            <div x-show="activeTab === 'compare'" class="space-y-6">
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                    <h2 class="text-lg font-bold text-slate-900 mb-4">Comparateur Côte à Côte</h2>
-                    <template x-if="compareList.length === 0">
-                        <p class="text-slate-500 text-sm">Aucune formation sélectionnée. Cliquez sur le bouton "Comparer" depuis l'onglet Recherche pour en ajouter (jusqu'à 2).</p>
-                    </template>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6" x-show="compareList.length > 0">
-                        <template x-for="(item, index) in compareList" :key="item.id + index">
-                            <div class="border rounded-xl p-5 bg-slate-50 relative">
-                                <button @click="compareList.splice(index, 1); $nextTick(() => renderCompareChart())" class="absolute top-4 right-4 text-rose-600 text-xs font-bold bg-white px-2 py-1 border rounded shadow-sm">Supprimer</button>
-                                <h3 class="font-bold text-lg text-slate-900" x-text="item.etab"></h3>
-                                <p class="text-xs text-slate-500 mb-4" x-text="item.ville + ' • ' + item.filiere"></p>
-                                <div class="space-y-3 text-sm">
-                                    <div class="flex justify-between bg-white p-2.5 rounded border">
-                                        <span class="text-slate-500">Capacité d'accueil :</span>
-                                        <span class="font-semibold" x-text="item.cap"></span>
-                                    </div>
-                                    <div class="flex justify-between bg-white p-2.5 rounded border">
-                                        <span class="text-slate-500">Vœux formulés :</span>
-                                        <span class="font-semibold" x-text="item.voeux"></span>
-                                    </div>
-                                    <div class="flex justify-between bg-white p-2.5 rounded border">
-                                        <span class="text-slate-500">Taux d'accès :</span>
-                                        <span class="font-bold text-indigo-600" x-text="item.taux_acc + '%'"></span>
-                                    </div>
-                                    <div class="flex justify-between bg-white p-2.5 rounded border">
-                                        <span class="text-slate-500">Boursiers :</span>
-                                        <span class="font-semibold" x-text="item.boursiers + '%'"></span>
-                                    </div>
-                                </div>
-                            </div>
-                        </template>
-                    </div>
+            <div class="mb-4 grid grid-cols-[1fr_auto] items-end gap-3 sm:hidden">
+                <div>
+                    <label for="mobileSort" class="block text-xs font-semibold text-slate-500 mb-1">TRIER PAR</label>
+                    <select id="mobileSort" :value="sortKey" @change="sortBy($event.target.value)" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <option value="">Ordre du CSV</option>
+                        <option value="etablissement">Établissement et ville</option>
+                        <option value="filiere">Filière</option>
+                        <option value="cap">Capacité</option>
+                        <option value="admis">Nombre d’admis</option>
+                        <option value="rang_mentions">Rang des mentions</option>
+                    </select>
+                </div>
+                <button @click="toggleSortDirection()" :disabled="!sortKey" class="px-3 py-2 border rounded-lg text-sm font-medium disabled:opacity-50" x-text="sortDirection === 'asc' ? 'Croissant ↑' : 'Décroissant ↓'"></button>
+            </div>
 
-                    <!-- Graphique comparatif des mentions -->
-                    <div x-show="compareList.length > 0" class="border-t pt-6">
-                        <h3 class="text-sm font-bold text-slate-700 mb-3">Comparaison des mentions au bac des admis</h3>
-                        <div class="relative h-80 w-full">
-                            <canvas id="compareChart"></canvas>
-                        </div>
+            <!-- Results Table -->
+            <div class="relative" @keydown.escape.window="levelInfoOpen = false">
+                <div id="levelInfoBubble" x-show="levelInfoOpen" class="fixed top-24 right-4 z-50 w-80 max-w-[calc(100vw-2rem)] max-h-[calc(100vh-7rem)] overflow-y-auto rounded-xl border border-slate-200 bg-white p-4 text-left text-sm text-slate-700 shadow-xl" role="dialog" aria-labelledby="levelInfoTitle" @click.outside="levelInfoOpen = false" @click.stop>
+                    <div class="mb-2 flex items-start justify-between gap-3">
+                        <h2 id="levelInfoTitle" class="font-bold text-slate-900">Calcul du rang des mentions</h2>
+                        <button type="button" @click="levelInfoOpen = false" aria-label="Fermer l'information" class="font-bold text-slate-500 hover:text-slate-800">&times;</button>
                     </div>
+                    <p class="mb-2">Score sur 100 = 25 × (% Assez Bien + 2 × % Bien + 3 × % Très Bien + 4 × % Très Bien avec félicitations) ÷ somme des cinq pourcentages. « Sans mention » vaut 0 point mais entre dans la somme.</p>
+                    <p class="mb-2">Le score est arrondi à deux décimales. Le rang est calculé sur toutes les formations, même quand un filtre est actif. Les scores égaux partagent le même rang ; les données insuffisantes sont notées N/D.</p>
+                    <p>Cet indicateur décrit les mentions au bac des admis néo-bacheliers, pas la qualité de l’enseignement.</p>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b">
+                                <th class="p-4" :aria-sort="sortKey === 'etablissement' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'">
+                                    <button type="button" @click="sortBy('etablissement')" class="uppercase tracking-wider hover:text-indigo-700 focus:outline-none focus:underline">Établissement & Ville <span aria-hidden="true" x-text="sortIndicator('etablissement')"></span></button>
+                                </th>
+                                <th class="p-4" :aria-sort="sortKey === 'filiere' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'">
+                                    <button type="button" @click="sortBy('filiere')" class="uppercase tracking-wider hover:text-indigo-700 focus:outline-none focus:underline">Filière <span aria-hidden="true" x-text="sortIndicator('filiere')"></span></button>
+                                </th>
+                                <th class="hidden p-4 text-center sm:table-cell" :aria-sort="sortKey === 'cap' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'">
+                                    <button type="button" @click="sortBy('cap')" class="uppercase tracking-wider hover:text-indigo-700 focus:outline-none focus:underline">Capacité <span aria-hidden="true" x-text="sortIndicator('cap')"></span></button>
+                                </th>
+                                <th class="p-4 text-center" :aria-sort="sortKey === 'admis' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'">
+                                    <button type="button" @click="sortBy('admis')" class="uppercase tracking-wider hover:text-indigo-700 focus:outline-none focus:underline">Admis <span aria-hidden="true" x-text="sortIndicator('admis')"></span></button>
+                                </th>
+                                <th class="p-4 text-center" :aria-sort="sortKey === 'rang_mentions' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'">
+                                    <span class="inline-flex items-center gap-1">
+                                        <button type="button" @click="sortBy('rang_mentions')" class="uppercase tracking-wider hover:text-indigo-700 focus:outline-none focus:underline">Rang mentions <span aria-hidden="true" x-text="sortIndicator('rang_mentions')"></span></button>
+                                        <button type="button" @click.stop="levelInfoOpen = !levelInfoOpen" :aria-expanded="levelInfoOpen" aria-controls="levelInfoBubble" aria-label="Afficher le calcul du rang des mentions" title="Afficher le calcul du rang des mentions" class="rounded-full px-1 text-slate-500 hover:bg-indigo-100 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">i</button>
+                                    </span>
+                                </th>
+                                <th class="p-4 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 text-sm">
+                            <template x-for="item in paginatedFormations" :key="item.row_id">
+                                <tr class="hover:bg-slate-50 transition">
+                                    <td class="p-4">
+                                        <div class="font-semibold text-slate-900" x-text="item.etab"></div>
+                                        <div class="text-xs text-slate-500" x-text="item.ville + (item.acad ? ' (' + item.acad + ')' : '')"></div>
+                                    </td>
+                                    <td class="p-4 text-slate-700" x-text="item.filiere"></td>
+                                    <td class="hidden p-4 text-center font-medium sm:table-cell" x-text="item.cap"></td>
+                                    <td class="whitespace-nowrap p-4 text-center font-medium" x-text="item.admis?.toLocaleString('fr-FR') ?? 'N/D'"></td>
+                                    <td class="p-4 text-center">
+                                        <span class="inline-flex flex-col items-center rounded-full px-2.5 py-1 text-xs font-bold" :class="item.rang_mentions === null ? 'bg-slate-100 text-slate-500' : 'bg-emerald-100 text-emerald-800'">
+                                            <span x-text="item.rang_mentions === null ? 'N/D' : '#' + item.rang_mentions"></span>
+                                            <span x-show="item.score_mentions != null" class="whitespace-nowrap font-medium" x-text="formatScore(item.score_mentions)"></span>
+                                        </span>
+                                    </td>
+                                    <td class="p-4 text-right">
+                                        <button @click="openModal(item)" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition">Détails</button>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Pagination -->
+                <div class="p-4 bg-slate-50 border-t flex justify-between items-center">
+                    <span class="text-xs text-slate-500">Affichage de <span x-text="filteredFormations.length ? startIndex + 1 : 0"></span> à <span x-text="Math.min(endIndex, filteredFormations.length)"></span> sur <span x-text="filteredFormations.length"></span> résultats</span>
+                    <div class="space-x-2">
+                        <button @click="page > 1 ? page-- : null" :disabled="page === 1" class="px-3 py-1 bg-white border rounded text-sm disabled:opacity-50">Précédent</button>
+                        <span class="text-sm font-medium" x-text="page + ' / ' + maxPage"></span>
+                        <button @click="page < maxPage ? page++ : null" :disabled="page >= maxPage" class="px-3 py-1 bg-white border rounded text-sm disabled:opacity-50">Suivant</button>
+                    </div>
+                </div>
                 </div>
             </div>
 
@@ -160,7 +168,7 @@
 
     <!-- Modal Details -->
     <div x-show="modalOpen" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50" x-cloak>
-        <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-xl border border-slate-100 max-h-[90vh] overflow-y-auto" @click.outside="modalOpen = false">
+        <div class="bg-white rounded-2xl max-w-2xl w-full p-4 sm:p-6 shadow-xl border border-slate-100 max-h-[90vh] overflow-y-auto" @click.outside="modalOpen = false">
             <template x-if="selectedItem">
                 <div>
                     <div class="flex justify-between items-start mb-6">
@@ -168,18 +176,24 @@
                             <h2 class="text-xl font-bold text-slate-900" x-text="selectedItem.etab"></h2>
                             <p class="text-sm text-indigo-600 font-medium" x-text="selectedItem.filiere"></p>
                             <p class="text-xs text-slate-500" x-text="selectedItem.ville + (selectedItem.acad ? ' (' + selectedItem.acad + ')' : '')"></p>
+                            <p class="mt-2 text-xs text-slate-500" x-text="'Session des données : ' + (selectedItem.session || 'N/D')"></p>
+                            <template x-if="selectedItem.lien_parcoursup">
+                                <a :href="selectedItem.lien_parcoursup" target="_blank" rel="noopener noreferrer" class="mt-1 inline-block text-sm font-semibold text-indigo-700 underline">Voir la fiche officielle sur Parcoursup (nouvel onglet)</a>
+                            </template>
+                            <p x-show="!selectedItem.lien_parcoursup" class="mt-1 text-xs text-slate-500">Lien Parcoursup indisponible.</p>
                         </div>
                         <button @click="modalOpen = false" class="text-slate-400 hover:text-slate-600 text-lg font-bold">&times;</button>
                     </div>
 
-                    <div class="grid grid-cols-3 gap-4 mb-6 text-center">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 text-center">
                         <div class="bg-slate-50 p-3 rounded-xl border">
-                            <div class="text-xs text-slate-500 font-medium">Capacité</div>
-                            <div class="text-lg font-bold text-slate-900" x-text="selectedItem.cap"></div>
+                            <div class="text-xs text-slate-500 font-medium">Admis / places proposées</div>
+                            <div class="text-lg font-bold text-slate-900" x-text="`${selectedItem.admis?.toLocaleString('fr-FR') ?? 'N/D'} / ${selectedItem.cap?.toLocaleString('fr-FR') ?? 'N/D'}`"></div>
                         </div>
                         <div class="bg-slate-50 p-3 rounded-xl border">
-                            <div class="text-xs text-slate-500 font-medium">Taux d'accès</div>
-                            <div class="text-lg font-bold text-indigo-600" x-text="selectedItem.taux_acc + '%'"></div>
+                            <div class="text-xs text-slate-500 font-medium">Rang mentions</div>
+                            <div class="text-lg font-bold text-indigo-600" x-text="selectedItem.rang_mentions === null ? 'N/D' : '#' + selectedItem.rang_mentions"></div>
+                            <div class="text-xs text-slate-500" x-show="selectedItem.score_mentions != null" x-text="formatScore(selectedItem.score_mentions)"></div>
                         </div>
                         <div class="bg-slate-50 p-3 rounded-xl border">
                             <div class="text-xs text-slate-500 font-medium">Boursiers</div>
@@ -187,8 +201,37 @@
                         </div>
                     </div>
 
+                    <div class="border-t pt-4 mb-5">
+                        <div x-show="!comparisonItem">
+                            <label for="comparisonSearch" class="block text-sm font-bold text-slate-700 mb-2">Comparer cette formation avec une autre</label>
+                            <input id="comparisonSearch" x-ref="comparisonSearch" type="search" x-model="comparisonSearch" placeholder="Rechercher un établissement, une ville ou une filière..." autocomplete="off" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        </div>
+                        <template x-if="comparisonSearch.trim() && !comparisonItem">
+                            <div class="mt-2 max-h-48 overflow-y-auto rounded-lg border border-slate-200 divide-y divide-slate-100">
+                                <template x-for="item in comparisonMatches" :key="item.row_id">
+                                    <button @click="selectComparison(item)" class="block w-full px-3 py-2 text-left hover:bg-indigo-50 break-words">
+                                        <span class="block text-sm font-semibold text-slate-800" x-text="item.etab + (item.ville ? ' — ' + item.ville : '')"></span>
+                                        <span class="block text-xs text-slate-500" x-text="item.filiere"></span>
+                                    </button>
+                                </template>
+                                <p x-show="comparisonMatches.length === 0" class="px-3 py-2 text-sm text-slate-500">Aucune formation trouvée.</p>
+                            </div>
+                        </template>
+                        <div x-show="comparisonItem" class="mt-3 flex items-start justify-between gap-3 rounded-lg border border-sky-200 bg-sky-50 p-3">
+                            <div>
+                                <p class="text-xs font-semibold uppercase text-sky-700">Formation comparée</p>
+                                <p class="text-sm font-bold text-slate-800" x-text="comparisonItem && comparisonItem.etab"></p>
+                                <p class="text-xs text-slate-600" x-text="comparisonItem && comparisonItem.ville + ' — ' + comparisonItem.filiere"></p>
+                                <p class="text-xs text-slate-600" x-text="comparisonItem && (comparisonItem.rang_mentions === null ? 'Rang mentions : N/D' : 'Rang mentions : #' + comparisonItem.rang_mentions + ' · ' + formatScore(comparisonItem.score_mentions))"></p>
+                            </div>
+                            <button @click="clearComparison()" class="shrink-0 rounded px-2 py-1 text-xs font-semibold text-sky-800 hover:bg-sky-100">Retirer</button>
+                        </div>
+                    </div>
+
                     <div class="border-t pt-4">
-                        <h4 class="text-sm font-bold text-slate-700 mb-3">Répartition des mentions au bac des admis (du plus bas au plus haut)</h4>
+                        <h4 class="text-sm font-bold text-slate-700 mb-3">Répartition des mentions au bac des admis néo-bacheliers</h4>
+                        <p x-show="selectedItem.rang_mentions === null" class="mb-2 text-sm text-slate-500">Données de mentions insuffisantes pour la formation ouverte.</p>
+                        <p x-show="comparisonItem && comparisonItem.rang_mentions === null" class="mb-2 text-sm text-slate-500">Données de mentions insuffisantes pour la formation comparée.</p>
                         <div class="relative h-64 w-full">
                             <canvas id="mentionChart"></canvas>
                         </div>
@@ -196,7 +239,6 @@
 
                     <div class="mt-6 pt-4 border-t flex justify-end gap-3">
                         <button @click="modalOpen = false" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition">Fermer</button>
-                        <button @click="toggleCompare(selectedItem); modalOpen = false" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition">Comparer cet établissement</button>
                     </div>
                 </div>
             </template>
@@ -208,24 +250,35 @@
         function parcoursupApp() {
             return {
                 loading: true,
+                error: '',
                 formations: [],
                 searchQuery: '',
                 selectedAcad: '',
-                activeTab: 'search',
+                selectedFiliere: '',
                 page: 1,
                 perPage: 15,
-                compareList: [],
+                sortKey: 'rang_mentions',
+                sortDirection: 'asc',
+                levelInfoOpen: false,
                 modalOpen: false,
                 selectedItem: null,
-                chartInstance: null,
-                compareChartInstance: null,
+                comparisonSearch: '',
+                comparisonItem: null,
 
                 async init() {
                     try {
-                        const response = await fetch('data.json');
-                        this.formations = await response.json();
-                    } catch (e) {
-                        console.error('Erreur chargement data.json:', e);
+                        const response = await fetch('./data.json');
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}`);
+                        }
+                        const formations = await response.json();
+                        if (!Array.isArray(formations)) {
+                            throw new Error('Le fichier data.json ne contient pas une liste de formations.');
+                        }
+                        this.formations = formations;
+                    } catch (error) {
+                        console.error('Erreur chargement data.json:', error);
+                        this.error = 'Vérifiez que data.json existe et ouvrez le site via un serveur local ou GitHub Pages.';
                     } finally {
                         this.loading = false;
                     }
@@ -235,6 +288,11 @@
                     return [...new Set(this.formations.map(f => f.acad))].filter(Boolean).sort();
                 },
 
+                get filieres() {
+                    return [...new Set(this.formations.map(f => f.filiere_groupe))]
+                        .filter(Boolean).sort((a, b) => a.localeCompare(b, 'fr'));
+                },
+
                 get filteredFormations() {
                     return this.formations.filter(f => {
                         const matchesQuery = this.searchQuery === '' || 
@@ -242,7 +300,8 @@
                             f.ville.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
                             f.filiere.toLowerCase().includes(this.searchQuery.toLowerCase());
                         const matchesAcad = this.selectedAcad === '' || f.acad === this.selectedAcad;
-                        return matchesQuery && matchesAcad;
+                        const matchesFiliere = this.selectedFiliere === '' || f.filiere_groupe === this.selectedFiliere;
+                        return matchesQuery && matchesAcad && matchesFiliere;
                     });
                 },
 
@@ -258,94 +317,141 @@
                     return this.startIndex + this.perPage;
                 },
 
-                get paginatedFormations() {
-                    return this.filteredFormations.slice(this.startIndex, this.endIndex);
+                get sortedFormations() {
+                    if (!this.sortKey) return this.filteredFormations;
+
+                    const collator = new Intl.Collator('fr', {
+                        sensitivity: 'base',
+                        numeric: true
+                    });
+                    return [...this.filteredFormations].sort((left, right) => {
+                        const leftValue = this.sortKey === 'etablissement'
+                            ? `${left.etab} ${left.ville}`
+                            : left[this.sortKey];
+                        const rightValue = this.sortKey === 'etablissement'
+                            ? `${right.etab} ${right.ville}`
+                            : right[this.sortKey];
+                        if (leftValue == null || rightValue == null) {
+                            if (leftValue == null && rightValue == null) return 0;
+                            return leftValue == null ? 1 : -1;
+                        }
+                        const comparison = typeof leftValue === 'number' && typeof rightValue === 'number'
+                            ? leftValue - rightValue
+                            : collator.compare(String(leftValue ?? ''), String(rightValue ?? ''));
+                        return this.sortDirection === 'asc' ? comparison : -comparison;
+                    });
                 },
 
-                toggleCompare(item) {
-                    const idx = this.compareList.findIndex(i => i.id === item.id && i.filiere === item.filiere);
-                    if (idx > -1) {
-                        this.compareList.splice(idx, 1);
+                get paginatedFormations() {
+                    return this.sortedFormations.slice(this.startIndex, this.endIndex);
+                },
+
+                sortBy(key) {
+                    if (!key) {
+                        this.sortKey = '';
+                        this.sortDirection = 'asc';
+                    } else if (this.sortKey === key) {
+                        this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
                     } else {
-                        if (this.compareList.length >= 2) {
-                            alert('Vous pouvez comparer au maximum 2 établissements simultanément.');
-                            return;
-                        }
-                        this.compareList.push(item);
+                        this.sortKey = key;
+                        this.sortDirection = 'asc';
                     }
-                    if (this.activeTab === 'compare') {
-                        this.$nextTick(() => this.renderCompareChart());
+                    this.page = 1;
+                },
+
+                toggleSortDirection() {
+                    if (!this.sortKey) return;
+                    this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+                    this.page = 1;
+                },
+
+                sortIndicator(key) {
+                    if (this.sortKey !== key) return '↕';
+                    return this.sortDirection === 'asc' ? '↑' : '↓';
+                },
+
+                formatScore(score) {
+                    return score == null ? 'N/D' : score.toLocaleString('fr-FR') + ' / 100';
+                },
+
+                get comparisonMatches() {
+                    const normalize = value => value.toLocaleLowerCase('fr').normalize('NFD').replace(/\p{M}/gu, '');
+                    const query = normalize(this.comparisonSearch.trim());
+                    if (!query || !this.selectedItem) return [];
+
+                    const terms = query.split(/\s+/);
+                    const matches = [];
+                    for (const item of this.formations) {
+                        if (item.row_id === this.selectedItem.row_id) continue;
+                        const label = normalize([item.etab, item.ville, item.filiere, item.filiere_groupe].join(' '));
+                        if (terms.every(term => label.includes(term))) matches.push(item);
+                        if (matches.length === 8) break;
                     }
+                    return matches;
                 },
 
                 openModal(item) {
                     this.selectedItem = item;
+                    this.comparisonSearch = '';
+                    this.comparisonItem = null;
                     this.modalOpen = true;
-                    this.$nextTick(() => this.renderChart(item));
+                    this.$nextTick(() => this.renderChart());
                 },
 
-                renderChart(item) {
+                selectComparison(item) {
+                    this.comparisonItem = item;
+                    this.comparisonSearch = '';
+                    this.$nextTick(() => this.renderChart());
+                },
+
+                clearComparison() {
+                    this.comparisonItem = null;
+                    this.$nextTick(() => {
+                        this.renderChart();
+                        this.$refs.comparisonSearch.focus();
+                    });
+                },
+
+                renderChart() {
                     const canvasEl = document.getElementById('mentionChart');
-                    if (!canvasEl) return;
-                    const ctx = canvasEl.getContext('2d');
-                    if (this.chartInstance) this.chartInstance.destroy();
-                    
-                    const m = item.mentions || {};
-                    const labels = ['Sans mention', 'Assez Bien', 'Bien', 'Très Bien', 'Très Bien + Félicitations'];
-                    const dataValues = [m.sans || 0, m.ab || 0, m.b || 0, m.tb || 0, m.tb_fel || 0];
+                    if (!canvasEl || !this.selectedItem) return;
+                    Chart.getChart(canvasEl)?.destroy();
 
-                    this.chartInstance = new Chart(ctx, {
+                    const labels = ['Sans mention', 'Assez Bien', 'Bien', 'Très Bien', 'Très Bien + Félicitations'];
+                    const colors = ['#94a3b8', '#93c5fd', '#60a5fa', '#3b82f6', '#4f46e5'];
+                    const datasetFor = (item, color) => ({
+                        label: `${item.etab} (${this.formatScore(item.score_mentions)})`,
+                        data: ['sans', 'ab', 'b', 'tb', 'tb_fel'].map(key =>
+                            item.rang_mentions === null ? null : item.mentions[key]
+                        ),
+                        backgroundColor: color,
+                        borderRadius: 6
+                    });
+                    const datasets = [
+                        datasetFor(
+                            this.selectedItem,
+                            this.comparisonItem ? '#4f46e5' : colors
+                        )
+                    ];
+                    if (this.comparisonItem) {
+                        datasets.push(datasetFor(this.comparisonItem, '#0ea5e9'));
+                    }
+
+                    new Chart(canvasEl, {
                         type: 'bar',
-                        data: {
-                            labels: labels,
-                            datasets: [{
-                                label: 'Part des admis (%)',
-                                data: dataValues,
-                                backgroundColor: ['#94a3b8', '#93c5fd', '#60a5fa', '#3b82f6', '#4f46e5'],
-                                borderRadius: 6
-                            }]
-                        },
+                        data: { labels: labels, datasets },
                         options: {
                             responsive: true,
                             maintainAspectRatio: false,
-                            plugins: { legend: { display: false } },
+                            animation: false,
+                            plugins: {
+                                legend: { display: Boolean(this.comparisonItem), position: 'bottom' },
+                                tooltip: { callbacks: { label: item => `${item.dataset.label} : ${item.formattedValue} %` } }
+                            },
                             scales: { y: { beginAtZero: true, ticks: { callback: v => v + '%' } } }
                         }
                     });
                 },
-
-                renderCompareChart() {
-                    const canvasEl = document.getElementById('compareChart');
-                    if (!canvasEl) return;
-                    const ctx = canvasEl.getContext('2d');
-                    if (this.compareChartInstance) this.compareChartInstance.destroy();
-
-                    if (this.compareList.length === 0) return;
-
-                    const labels = ['Sans mention', 'Assez Bien', 'Bien', 'Très Bien', 'Très Bien + Félicitations'];
-                    const colors = ['#4f46e5', '#0ea5e9'];
-
-                    const datasets = this.compareList.map((item, idx) => {
-                        const m = item.mentions || {};
-                        return {
-                            label: item.etab + ' (' + item.filiere.substring(0, 25) + '...)',
-                            data: [m.sans || 0, m.ab || 0, m.b || 0, m.tb || 0, m.tb_fel || 0],
-                            backgroundColor: colors[idx % colors.length],
-                            borderRadius: 4
-                        };
-                    });
-
-                    this.compareChartInstance = new Chart(ctx, {
-                        type: 'bar',
-                        data: { labels: labels, datasets: datasets },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { position: 'bottom' } },
-                            scales: { y: { beginAtZero: true, ticks: { callback: v => v + '%' } } }
-                        }
-                    });
-                }
             }
         }
     </script>
