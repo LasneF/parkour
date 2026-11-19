@@ -25,7 +25,7 @@ class FormationDetailsTests(unittest.TestCase):
                 ])
                 writer.writerow(["Lycée A", "Paris", "Paris", "BTS", 1000, 1300, 2025, 720, link])
                 writer.writerow(["Lycée B", "Lyon", "Lyon", "BTS", 15, 40, 2025, 0, ""])
-                writer.writerow(["Lycée C", "Nice", "Nice", "BTS", 20, 40, "", "", "https://parcoursup.fr.example.org"])
+                writer.writerow(["Lycée C", "Nice", "Nice", "BTS", 20, "", "", "", "https://parcoursup.fr.example.org"])
             with patch.object(build, "CSV_FILE", source), patch.object(build, "JSON_OUTPUT", output):
                 build.process_parcoursup()
             rows = json.loads(output.read_text(encoding="utf-8"))
@@ -34,6 +34,7 @@ class FormationDetailsTests(unittest.TestCase):
             [(row["admis"], row["cap"], row["session"], row["lien_parcoursup"]) for row in rows],
             [(720, 1000, "2025", link), (0, 15, "2025", ""), (None, 20, "", "")],
         )
+        self.assertEqual([row["voeux"] for row in rows], [1300, 40, None])
 
 
 class MentionRankingTests(unittest.TestCase):
@@ -45,6 +46,8 @@ class MentionRankingTests(unittest.TestCase):
             {"mentions": {"tb_fel": 0, "tb": 100, "b": 0, "ab": 0, "sans": 0}},
             {"mentions": {"tb_fel": 100, "tb": 0, "b": 0, "ab": 0, "sans": 0}},
         ]
+        for formation in formations:
+            formation["admis"] = 6
 
         assign_mention_ranks(formations)
 
@@ -74,6 +77,8 @@ class MentionRankingTests(unittest.TestCase):
             {"mentions": {"tb_fel": 0, "tb": 20, "b": 40, "ab": 60, "sans": 80}},
             {"mentions": {"tb_fel": 0, "tb": 0, "b": 0, "ab": 50, "sans": 50}},
         ]
+        for formation in formations:
+            formation["admis"] = 6
 
         assign_mention_ranks(formations)
 
@@ -88,9 +93,26 @@ class MentionRankingTests(unittest.TestCase):
             {"mentions": {"tb_fel": None, "tb": 0, "b": 50, "ab": 25, "sans": 25}},
             {"mentions": {"tb_fel": 0, "tb": 0, "b": 0, "ab": 0, "sans": 100}},
         ]
+        for formation in formations:
+            formation["admis"] = 6
         assign_mention_ranks(formations)
         self.assertEqual([item["rang_mentions"] for item in formations], [None, None, 1])
         self.assertEqual([item["score_mentions"] for item in formations], [None, None, 0])
+
+    def test_small_and_unknown_cohorts_are_excluded_from_ranking(self):
+        strong = {"tb_fel": 100, "tb": 0, "b": 0, "ab": 0, "sans": 0}
+        weaker = {"tb_fel": 0, "tb": 0, "b": 100, "ab": 0, "sans": 0}
+        formations = [
+            {"admis": 0, "mentions": strong},
+            {"admis": 5, "mentions": strong},
+            {"admis": None, "mentions": strong},
+            {"admis": 6, "mentions": weaker},
+        ]
+
+        assign_mention_ranks(formations)
+
+        self.assertEqual([item["rang_mentions"] for item in formations], [None, None, None, 1])
+        self.assertEqual([item["score_mentions"] for item in formations], [100, 100, 100, 50])
 
 
 if __name__ == "__main__":

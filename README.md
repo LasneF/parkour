@@ -6,8 +6,9 @@ Version en ligne : https://lasnef.github.io/parkour/
 
 ## Utiliser la page
 
-- **Rechercher** par établissement, commune ou intitulé de formation. La recherche se combine avec les filtres **Académie** et **Filière de formation**. Ce dernier utilise les catégories du CSV, tandis que le tableau conserve les intitulés détaillés.
-- **Trier** par établissement et ville, filière, capacité, nombre d'admis ou rang des mentions. Le nombre d'admis est affiché directement dans le tableau. Par défaut, les meilleurs scores apparaissent en premier. Les résultats sont affichés par pages de 15.
+- **Rechercher** par établissement, commune ou intitulé de formation. La recherche se combine avec le filtre **Filière de formation**, qui utilise les catégories du CSV, tandis que le tableau conserve les intitulés détaillés.
+- **Trier** par établissement et ville, filière, capacité, nombre d'admis, sélectivité ou rang des mentions. Les valeurs de sélectivité indisponibles restent en fin de liste. Par défaut, les meilleurs scores apparaissent en premier. Les résultats sont affichés par pages de 15.
+- **Consulter la sélectivité** dans le tableau et les détails : nombre total de candidats divisé par le nombre d'admis, exprimé en candidats par admis. L'indicateur vaut NA lorsqu'il n'y a aucun admis et N/D si un effectif est manquant. Ce rapport ne représente pas un taux d'admission.
 - **Ouvrir Détails** pour voir le nombre d'admis rapporté à la capacité d'accueil (par exemple `20 / 25`), le rang et le score, la part des néo-bacheliers boursiers et la répartition des mentions au bac. La fiche indique la session des données et propose le lien officiel Parcoursup lorsqu'il est disponible. « Admis / places » compare deux effectifs, ce n'est pas un taux d'admission.
 - **Comparer** en recherchant une deuxième formation dans **Détails**. Les deux distributions s'affichent côte à côte sur le même histogramme. La légende affiche le nom de chaque établissement et son score entre parenthèses. Le bouton **Retirer** revient au graphique d'une seule formation.
 
@@ -16,7 +17,7 @@ La page [index.html](./index.html) charge `data.json` depuis le même dossier. L
 ## Traitement des données
 
 1. [build.py](./build.py) lit [fr-esr-parcoursup.csv](./fr-esr-parcoursup.csv) en UTF-8, avec `;` comme séparateur, et identifie les colonnes utilisées à partir de leurs intitulés.
-2. Le script nettoie les valeurs numériques (espaces, virgules décimales, signes `%`) et extrait les champs utiles au site : identifiants, établissement, commune, académie, intitulé détaillé, catégorie de filière, capacité, effectifs des candidats et des admis, session, lien officiel Parcoursup, part des néo-bacheliers boursiers et répartition des mentions. L'effectif des candidats est exporté dans `voeux`, mais n'est pas affiché actuellement. Pour le filtre par filière, le script utilise le second en-tête `Filière de formation`, qui correspond aux catégories regroupées.
+2. Le script nettoie les valeurs numériques (espaces, virgules décimales, signes `%`) et extrait les champs utiles au site : identifiants, établissement, commune, académie, intitulé détaillé, catégorie de filière, capacité, effectifs des candidats et des admis, session, lien officiel Parcoursup, part des néo-bacheliers boursiers et répartition des mentions. L'effectif des candidats est exporté dans `voeux`. Pour le filtre par filière, le script utilise le second en-tête `Filière de formation`, qui correspond aux catégories regroupées.
 3. Le script calcule `score_mentions` et `rang_mentions`, vérifie qu'au moins une formation a été extraite et que la capacité totale est d'au moins 1 000 places, puis écrit le fichier généré `data.json`. Le CSV d'origine n'est pas modifié ; le JSON est régénéré à chaque build et n'est pas suivi par Git.
 
 ### Classement par mentions
@@ -25,7 +26,7 @@ Quand les données sont suffisantes, une formation reçoit un score sur 100 à p
 
 > **Score = 25 × (% Assez Bien + 2 × % Bien + 3 × % Très Bien + 4 × % Très Bien avec félicitations) ÷ somme des cinq pourcentages**
 
-« Sans mention » vaut 0 point, mais son pourcentage est inclus au dénominateur. Diviser par la somme plutôt que par 100 tient compte des écarts dans les données, notamment dus aux arrondis. Le score est arrondi à deux décimales. Le rang est calculé sur l'ensemble des formations, du score le plus élevé au plus faible ; les scores égaux partagent le même rang (par exemple 1, 1, 3). Le filtre ne recalcule pas le rang. Si un des cinq pourcentages manque ou est hors de l'intervalle de 0 à 100, ou si les cinq valent zéro, le score et le rang sont indiqués N/D.
+« Sans mention » vaut 0 point, mais son pourcentage est inclus au dénominateur. Diviser par la somme plutôt que par 100 tient compte des écarts dans les données, notamment dus aux arrondis. Le score est arrondi à deux décimales. Le rang est calculé sur l'ensemble des formations éligibles, du score le plus élevé au plus faible ; les scores égaux partagent le même rang (par exemple 1, 1, 3). Le filtre ne recalcule pas le rang. Les formations ayant au plus 5 admis sont exclues du classement et leur rang est indiqué NA ; celles dont le nombre d'admis est inconnu sont également exclues et leur rang est indiqué N/D. Leur score et leur répartition restent affichés si les données sont suffisantes. Si un des cinq pourcentages manque ou est hors de l'intervalle de 0 à 100, ou si les cinq valent zéro, le score et le rang sont indisponibles.
 
 Le taux d'accès reste dans le CSV source, mais n'est ni exporté ni affiché et n'intervient pas dans la formule. Ce score décrit le profil des admis, pas la qualité pédagogique ; une petite cohorte peut obtenir un score élevé.
 

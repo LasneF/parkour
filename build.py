@@ -166,7 +166,7 @@ def assign_mention_ranks(formations):
         score = mention_score(formation["mentions"])
         formation["score_mentions"] = score
         formation["rang_mentions"] = None
-        if score is not None:
+        if score is not None and formation["admis"] is not None and formation["admis"] > 5:
             ranked.append((score, formation))
 
     ranked.sort(key=lambda entry: entry[0], reverse=True)
@@ -201,6 +201,7 @@ def process_parcoursup():
 
             admis_column = columns["admis"]
             admis = first_non_empty(row, admis_column) if admis_column else ""
+            voeux = first_non_empty(row, columns["voeux"])
             mentions = {}
             for mention, column in columns["mentions"].items():
                 value = first_non_empty(row, column) if column else ""
@@ -228,7 +229,7 @@ def process_parcoursup():
                     "lien_parcoursup": official_parcoursup_url(
                         first_non_empty(row, "Lien de la formation sur la plateforme Parcoursup", "lien_form_psup")
                     ),
-                    "voeux": clean_num(row.get(columns["voeux"]), columns["voeux"], row_number),
+                    "voeux": clean_num(voeux, columns["voeux"], row_number) if voeux else None,
                     "boursiers": clean_num(
                         row.get(columns["boursiers"]) if columns["boursiers"] else None,
                         columns["boursiers"] or "boursiers",
