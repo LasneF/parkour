@@ -73,9 +73,10 @@
                         <option value="">Ordre du CSV</option>
                         <option value="etablissement">Établissement et ville</option>
                         <option value="filiere">Filière</option>
+                        <option value="voeux">Nombre de candidats</option>
                         <option value="cap">Capacité</option>
                         <option value="admis">Nombre d’admis</option>
-                        <option value="selectivite">Sélectivité</option>
+                        <option value="taux_acces">Taux d’accès</option>
                         <option value="rang_mentions">Rang des mentions</option>
                     </select>
                 </div>
@@ -90,7 +91,7 @@
                         <button type="button" @click="levelInfoOpen = false" aria-label="Fermer l'information" class="font-bold text-slate-500 hover:text-slate-800">&times;</button>
                     </div>
                     <p class="mb-2">Score sur 100 = 25 × (% Assez Bien + 2 × % Bien + 3 × % Très Bien + 4 × % Très Bien avec félicitations) ÷ somme des cinq pourcentages. « Sans mention » vaut 0 point mais entre dans la somme.</p>
-                    <p class="mb-2">Le score est arrondi à deux décimales. Le rang est calculé sur toutes les formations éligibles, même quand un filtre est actif. Les scores égaux partagent le même rang. Les formations ayant au plus 5 admis sont exclues du classement et notées NA ; les données insuffisantes sont notées N/D.</p>
+                    <p class="mb-2" x-text="'Le score est arrondi à deux décimales. Le rang est calculé sur toutes les formations éligibles, même quand un filtre est actif. Les scores égaux partagent le même rang. Les formations ayant moins de ' + formations[0]?.threshold_size + ' admis sont exclues du classement et notées NA ; les données insuffisantes sont notées N/D.'"></p>
                     <p>Cet indicateur décrit les mentions au bac des admis néo-bacheliers, pas la qualité de l’enseignement.</p>
                 </div>
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -104,14 +105,17 @@
                                 <th class="p-4" :aria-sort="sortKey === 'filiere' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'">
                                     <button type="button" @click="sortBy('filiere')" class="uppercase tracking-wider hover:text-indigo-700 focus:outline-none focus:underline">Filière <span aria-hidden="true" x-text="sortIndicator('filiere')"></span></button>
                                 </th>
+                                <th class="p-4 text-center" :aria-sort="sortKey === 'voeux' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'">
+                                    <button type="button" @click="sortBy('voeux')" class="uppercase tracking-wider hover:text-indigo-700 focus:outline-none focus:underline">Candidats <span aria-hidden="true" x-text="sortIndicator('voeux')"></span></button>
+                                </th>
                                 <th class="hidden p-4 text-center sm:table-cell" :aria-sort="sortKey === 'cap' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'">
                                     <button type="button" @click="sortBy('cap')" class="uppercase tracking-wider hover:text-indigo-700 focus:outline-none focus:underline">Capacité <span aria-hidden="true" x-text="sortIndicator('cap')"></span></button>
                                 </th>
                                 <th class="p-4 text-center" :aria-sort="sortKey === 'admis' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'">
                                     <button type="button" @click="sortBy('admis')" class="uppercase tracking-wider hover:text-indigo-700 focus:outline-none focus:underline">Admis <span aria-hidden="true" x-text="sortIndicator('admis')"></span></button>
                                 </th>
-                                <th class="p-4 text-center" title="Nombre de candidats divisé par le nombre d'admis" :aria-sort="sortKey === 'selectivite' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'">
-                                    <button type="button" @click="sortBy('selectivite')" class="uppercase tracking-wider hover:text-indigo-700 focus:outline-none focus:underline">Sélectivité <span aria-hidden="true" x-text="sortIndicator('selectivite')"></span><br><span class="normal-case tracking-normal">candidats / admis</span></button>
+                                <th class="p-4 text-center" :title="'Taux d’accès du CSV ; NA pour moins de ' + formations[0]?.threshold_size + ' admis'" :aria-sort="sortKey === 'taux_acces' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'">
+                                    <button type="button" @click="sortBy('taux_acces')" class="uppercase tracking-wider hover:text-indigo-700 focus:outline-none focus:underline">Taux d’accès <span aria-hidden="true" x-text="sortIndicator('taux_acces')"></span></button>
                                 </th>
                                 <th class="p-4 text-center" :aria-sort="sortKey === 'rang_mentions' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'">
                                     <span class="inline-flex items-center gap-1">
@@ -130,9 +134,10 @@
                                         <div class="text-xs text-slate-500" x-text="item.ville + (item.acad ? ' (' + item.acad + ')' : '')"></div>
                                     </td>
                                     <td class="p-4 text-slate-700" x-text="item.filiere"></td>
+                                    <td class="whitespace-nowrap p-4 text-center font-medium" x-text="item.voeux?.toLocaleString('fr-FR') ?? 'N/D'"></td>
                                     <td class="hidden p-4 text-center font-medium sm:table-cell" x-text="item.cap"></td>
                                     <td class="whitespace-nowrap p-4 text-center font-medium" x-text="item.admis?.toLocaleString('fr-FR') ?? 'N/D'"></td>
-                                    <td class="whitespace-nowrap p-4 text-center" x-text="formatSelectivity(item)"></td>
+                                    <td class="whitespace-nowrap p-4 text-center" x-text="formatAccessRate(item)"></td>
                                     <td class="p-4 text-center">
                                         <span class="inline-flex flex-col items-center rounded-full px-2.5 py-1 text-xs font-bold" :class="item.rang_mentions === null ? 'bg-slate-100 text-slate-500' : 'bg-emerald-100 text-emerald-800'">
                                             <span x-text="formatRank(item)"></span>
@@ -195,7 +200,7 @@
                             <div class="text-xs text-slate-500 font-medium">Boursiers</div>
                             <div class="text-lg font-bold text-slate-900" x-text="selectedItem.boursiers + '%'"></div>
                         </div>
-                        <p class="mb-6 text-sm text-slate-600">Sélectivité : <strong x-text="formatSelectivity(selectedItem)"></strong> candidats par admis (<span x-text="selectedItem.voeux?.toLocaleString('fr-FR') ?? 'N/D'"></span> candidats / <span x-text="selectedItem.admis?.toLocaleString('fr-FR') ?? 'N/D'"></span> admis). Ce rapport n'est pas un taux d'admission.</p>
+                        <p class="mb-6 text-sm text-slate-600">Taux d’accès : <strong x-text="formatAccessRate(selectedItem)"></strong> (donnée du CSV Parcoursup).</p>
                     </div>
 
                     <div class="border-t pt-4 mb-5">
@@ -317,7 +322,7 @@
                     });
                     const sortValue = item => {
                         if (this.sortKey === 'etablissement') return `${item.etab} ${item.ville}`;
-                        if (this.sortKey === 'selectivite') return this.selectivityValue(item);
+                        if (this.sortKey === 'taux_acces') return this.accessRateValue(item);
                         return item[this.sortKey];
                     };
                     return [...this.filteredFormations].sort((left, right) => {
@@ -368,18 +373,18 @@
 
                 formatRank(item) {
                     if (item.rang_mentions != null) return '#' + item.rang_mentions;
-                    return item.admis != null && item.admis <= 5 ? 'NA' : 'N/D';
+                    return item.admis != null && item.admis < item.threshold_size ? 'NA' : 'N/D';
                 },
 
-                selectivityValue(item) {
-                    if (item.voeux == null || item.admis == null || item.admis <= 0) return null;
-                    return item.voeux / item.admis;
+                accessRateValue(item) {
+                    if (item.admis == null || item.admis < item.threshold_size) return null;
+                    return item.taux_acces;
                 },
 
-                formatSelectivity(item) {
-                    if (item.admis === 0) return 'NA';
-                    const value = this.selectivityValue(item);
-                    return value == null ? 'N/D' : value.toLocaleString('fr-FR', { maximumFractionDigits: 2 });
+                formatAccessRate(item) {
+                    if (item.admis != null && item.admis < item.threshold_size) return 'NA';
+                    const value = this.accessRateValue(item);
+                    return value == null ? 'N/D' : value.toLocaleString('fr-FR', { maximumFractionDigits: 2 }) + ' %';
                 },
 
                 get comparisonMatches() {

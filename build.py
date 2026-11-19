@@ -8,6 +8,7 @@ from urllib.parse import urlsplit
 ROOT_DIR = Path(__file__).resolve().parent
 CSV_FILE = ROOT_DIR / "fr-esr-parcoursup.csv"
 JSON_OUTPUT = ROOT_DIR / "data.json"
+THRESHOLD_SIZE = 10
 
 FILIERE_GROUP_COLUMNS = ("Filière de formation", "Filière de formation très agrégée", "fil_lib")
 ADMISSION_COLUMNS = (
@@ -72,6 +73,8 @@ BOURSIER_COLUMNS = (
     "% d'admis néo bacheliers boursiers",
 )
 
+TAUX_ACCES_COLUMNS = ("Taux d’accès", "Taux d'accès")
+
 
 def resolve_columns(fieldnames):
     if not fieldnames:
@@ -91,6 +94,9 @@ def resolve_columns(fieldnames):
         (name for name in BOURSIER_COLUMNS if name in fieldnames), None
     )
     columns["admis"] = next((name for name in ADMISSION_COLUMNS if name in fieldnames), None)
+    columns["taux_acces"] = next(
+        (name for name in TAUX_ACCES_COLUMNS if name in fieldnames), None
+    )
     columns["mentions"] = {
         mention: next((name for name in aliases if name in fieldnames), None)
         for mention, aliases in MENTION_COLUMNS.items()
@@ -166,7 +172,8 @@ def assign_mention_ranks(formations):
         score = mention_score(formation["mentions"])
         formation["score_mentions"] = score
         formation["rang_mentions"] = None
-        if score is not None and formation["admis"] is not None and formation["admis"] > 5:
+        formation["threshold_size"] = THRESHOLD_SIZE
+        if score is not None and formation["admis"] is not None and formation["admis"] >= THRESHOLD_SIZE:
             ranked.append((score, formation))
 
     ranked.sort(key=lambda entry: entry[0], reverse=True)
@@ -202,6 +209,8 @@ def process_parcoursup():
             admis_column = columns["admis"]
             admis = first_non_empty(row, admis_column) if admis_column else ""
             voeux = first_non_empty(row, columns["voeux"])
+            taux_column = columns["taux_acces"]
+            taux_acces = first_non_empty(row, taux_column) if taux_column else ""
             mentions = {}
             for mention, column in columns["mentions"].items():
                 value = first_non_empty(row, column) if column else ""
@@ -230,6 +239,10 @@ def process_parcoursup():
                         first_non_empty(row, "Lien de la formation sur la plateforme Parcoursup", "lien_form_psup")
                     ),
                     "voeux": clean_num(voeux, columns["voeux"], row_number) if voeux else None,
+                    "taux_acces": (
+                        clean_num(taux_acces, taux_column, row_number, is_float=True)
+                        if taux_column and taux_acces else None
+                    ),
                     "boursiers": clean_num(
                         row.get(columns["boursiers"]) if columns["boursiers"] else None,
                         columns["boursiers"] or "boursiers",
