@@ -7,8 +7,9 @@ Version en ligne : https://lasnef.github.io/parkour/
 ## Utiliser la page
 
 - **Rechercher** par établissement, commune ou intitulé de formation. La recherche se combine avec le filtre **Filière de formation**, qui utilise les catégories du CSV, tandis que le tableau conserve les intitulés détaillés.
-- **Trier** par établissement et ville, filière, nombre de candidats, capacité, nombre d'admis, taux d'accès ou rang des mentions. Les valeurs indisponibles restent en fin de liste. Par défaut, les meilleurs scores apparaissent en premier. Les résultats sont affichés par pages de 15.
-- **Consulter le taux d'accès** dans le tableau et les détails : il provient directement de la colonne « Taux d'accès » du CSV et est affiché en pourcentage. Il est indiqué NA pour moins de 10 admis et N/D si le nombre d'admis ou le taux manque.
+- **Trier** par établissement et ville, filière, nombre de candidats, capacité, nombre d'admis, taux d'accès, ParkRatio ou ParkRanking. Les valeurs indisponibles restent en fin de liste. Par défaut, les meilleurs scores apparaissent en premier. Les résultats sont affichés par pages de 15.
+- **Consulter le taux d'accès** dans le tableau et les détails : il provient directement de la colonne « Taux d'accès » du CSV et est affiché en pourcentage. Il est indiqué NA pour moins de 10 admis et N/D si le nombre d'admis ou le taux manque. Selon la [définition officielle du champ](https://data.enseignementsup-recherche.gouv.fr/explore/dataset/fr-esr-parcoursup/information/), il rapporte les candidats classés jusqu'au rang du dernier appelé de leur groupe aux candidats ayant confirmé un vœu en phase principale.
+- **Consulter le ParkRatio** : nombre total de candidats divisé par le nombre de candidats ayant accepté la proposition (admis), affiché avec au plus deux décimales. Il vaut N/D si un effectif manque ou si le nombre d'admis est nul. Il ne s'agit pas de l'inverse du taux d'accès : les populations et les phases prises en compte diffèrent.
 - **Ouvrir Détails** pour voir le nombre d'admis rapporté à la capacité d'accueil (par exemple `20 / 25`), le rang et le score, la part des néo-bacheliers boursiers et la répartition des mentions au bac. La fiche indique la session des données et propose le lien officiel Parcoursup lorsqu'il est disponible. « Admis / places » compare deux effectifs, ce n'est pas un taux d'admission.
 - **Comparer** en recherchant une deuxième formation dans **Détails**. Les deux distributions s'affichent côte à côte sur le même histogramme. La légende affiche le nom de chaque établissement et son score entre parenthèses. Le bouton **Retirer** revient au graphique d'une seule formation.
 
@@ -20,7 +21,7 @@ La page [index.html](./index.html) charge `data.json` depuis le même dossier. L
 2. Le script nettoie les valeurs numériques (espaces, virgules décimales, signes `%`) et extrait les champs utiles au site : identifiants, établissement, commune, académie, intitulé détaillé, catégorie de filière, capacité, effectifs des candidats et des admis, taux d'accès, session, lien officiel Parcoursup, part des néo-bacheliers boursiers et répartition des mentions. L'effectif des candidats est exporté dans `voeux`. Pour le filtre par filière, le script utilise le second en-tête `Filière de formation`, qui correspond aux catégories regroupées.
 3. Le script calcule `score_mentions` et `rang_mentions`, et exporte le seuil `THRESHOLD_SIZE` pour l'affichage des indicateurs. Il vérifie qu'au moins une formation a été extraite et que la capacité totale est d'au moins 1 000 places, puis écrit le fichier généré `data.json`. Le CSV d'origine n'est pas modifié ; le JSON est régénéré à chaque build et n'est pas suivi par Git.
 
-### Classement par mentions
+### ParkRanking : classement par mentions
 
 Quand les données sont suffisantes, une formation reçoit un score sur 100 à partir des mentions au bac des admis néo-bacheliers :
 

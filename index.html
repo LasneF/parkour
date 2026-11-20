@@ -77,17 +77,28 @@
                         <option value="cap">Capacité</option>
                         <option value="admis">Nombre d’admis</option>
                         <option value="taux_acces">Taux d’accès</option>
-                        <option value="rang_mentions">Rang des mentions</option>
+                        <option value="park_ratio">ParkRatio</option>
+                        <option value="rang_mentions">ParkRanking</option>
                     </select>
                 </div>
                 <button @click="toggleSortDirection()" :disabled="!sortKey" class="px-3 py-2 border rounded-lg text-sm font-medium disabled:opacity-50" x-text="sortDirection === 'asc' ? 'Croissant ↑' : 'Décroissant ↓'"></button>
             </div>
 
             <!-- Results Table -->
-            <div class="relative" @keydown.escape.window="levelInfoOpen = false">
+            <div class="relative" @keydown.escape.window="levelInfoOpen = false; accessInfoOpen = false">
+                <div id="accessInfoBubble" x-show="accessInfoOpen" x-cloak class="fixed top-24 right-4 z-50 w-80 max-w-[calc(100vw-2rem)] max-h-[calc(100vh-7rem)] overflow-y-auto rounded-xl border border-slate-200 bg-white p-4 text-left text-sm text-slate-700 shadow-xl" role="dialog" aria-labelledby="accessInfoTitle" @click.outside="accessInfoOpen = false" @click.stop>
+                    <div class="mb-2 flex items-start justify-between gap-3">
+                        <h2 id="accessInfoTitle" class="font-bold text-slate-900">Taux d’accès Parcoursup</h2>
+                        <button type="button" @click="accessInfoOpen = false" aria-label="Fermer l'information" class="font-bold text-slate-500 hover:text-slate-800">&times;</button>
+                    </div>
+                    <p class="mb-2">Part des candidats ayant confirmé un vœu en phase principale dont le rang de classement est inférieur ou égal au rang du dernier appelé de leur groupe.</p>
+                    <p class="mb-2">Ce taux ne correspond pas au nombre d’admis ni à l’inverse du ParkRatio.</p>
+                    <p class="mb-2" x-text="'Donnée du CSV : NA pour moins de ' + formations[0]?.threshold_size + ' admis ; N/D si le nombre d’admis ou le taux manque.'"></p>
+                    <a href="https://data.enseignementsup-recherche.gouv.fr/explore/dataset/fr-esr-parcoursup/information/" target="_blank" rel="noopener noreferrer" class="font-semibold text-indigo-700 underline">Source officielle (nouvel onglet)</a>
+                </div>
                 <div id="levelInfoBubble" x-show="levelInfoOpen" class="fixed top-24 right-4 z-50 w-80 max-w-[calc(100vw-2rem)] max-h-[calc(100vh-7rem)] overflow-y-auto rounded-xl border border-slate-200 bg-white p-4 text-left text-sm text-slate-700 shadow-xl" role="dialog" aria-labelledby="levelInfoTitle" @click.outside="levelInfoOpen = false" @click.stop>
                     <div class="mb-2 flex items-start justify-between gap-3">
-                        <h2 id="levelInfoTitle" class="font-bold text-slate-900">Calcul du rang des mentions</h2>
+                        <h2 id="levelInfoTitle" class="font-bold text-slate-900">Calcul du ParkRanking</h2>
                         <button type="button" @click="levelInfoOpen = false" aria-label="Fermer l'information" class="font-bold text-slate-500 hover:text-slate-800">&times;</button>
                     </div>
                     <p class="mb-2">Score sur 100 = 25 × (% Assez Bien + 2 × % Bien + 3 × % Très Bien + 4 × % Très Bien avec félicitations) ÷ somme des cinq pourcentages. « Sans mention » vaut 0 point mais entre dans la somme.</p>
@@ -114,13 +125,19 @@
                                 <th class="p-4 text-center" :aria-sort="sortKey === 'admis' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'">
                                     <button type="button" @click="sortBy('admis')" class="uppercase tracking-wider hover:text-indigo-700 focus:outline-none focus:underline">Admis <span aria-hidden="true" x-text="sortIndicator('admis')"></span></button>
                                 </th>
-                                <th class="p-4 text-center" :title="'Taux d’accès du CSV ; NA pour moins de ' + formations[0]?.threshold_size + ' admis'" :aria-sort="sortKey === 'taux_acces' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'">
-                                    <button type="button" @click="sortBy('taux_acces')" class="uppercase tracking-wider hover:text-indigo-700 focus:outline-none focus:underline">Taux d’accès <span aria-hidden="true" x-text="sortIndicator('taux_acces')"></span></button>
+                                <th class="p-4 text-center" :aria-sort="sortKey === 'taux_acces' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'">
+                                    <span class="inline-flex items-center gap-1">
+                                        <button type="button" @click="sortBy('taux_acces')" class="uppercase tracking-wider hover:text-indigo-700 focus:outline-none focus:underline">Taux d’accès <span aria-hidden="true" x-text="sortIndicator('taux_acces')"></span></button>
+                                        <button type="button" @click.stop="accessInfoOpen = !accessInfoOpen; levelInfoOpen = false" :aria-expanded="accessInfoOpen" aria-controls="accessInfoBubble" aria-label="Afficher la définition du taux d’accès" title="Afficher la définition du taux d’accès" class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-blue-600 text-blue-700 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500">i</button>
+                                    </span>
+                                </th>
+                                <th class="p-4 text-center" title="Nombre de candidats divisé par le nombre d’admis" :aria-sort="sortKey === 'park_ratio' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'">
+                                    <button type="button" @click="sortBy('park_ratio')" class="uppercase tracking-wider hover:text-indigo-700 focus:outline-none focus:underline">ParkRatio <span aria-hidden="true" x-text="sortIndicator('park_ratio')"></span></button>
                                 </th>
                                 <th class="p-4 text-center" :aria-sort="sortKey === 'rang_mentions' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'">
                                     <span class="inline-flex items-center gap-1">
-                                        <button type="button" @click="sortBy('rang_mentions')" class="uppercase tracking-wider hover:text-indigo-700 focus:outline-none focus:underline">Rang mentions <span aria-hidden="true" x-text="sortIndicator('rang_mentions')"></span></button>
-                                        <button type="button" @click.stop="levelInfoOpen = !levelInfoOpen" :aria-expanded="levelInfoOpen" aria-controls="levelInfoBubble" aria-label="Afficher le calcul du rang des mentions" title="Afficher le calcul du rang des mentions" class="rounded-full px-1 text-slate-500 hover:bg-indigo-100 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">i</button>
+                                        <button type="button" @click="sortBy('rang_mentions')" class="uppercase tracking-wider hover:text-indigo-700 focus:outline-none focus:underline">ParkRanking <span aria-hidden="true" x-text="sortIndicator('rang_mentions')"></span></button>
+                                        <button type="button" @click.stop="levelInfoOpen = !levelInfoOpen; accessInfoOpen = false" :aria-expanded="levelInfoOpen" aria-controls="levelInfoBubble" aria-label="Afficher le calcul du ParkRanking" title="Afficher le calcul du ParkRanking" class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-blue-600 text-blue-700 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500">i</button>
                                     </span>
                                 </th>
                                 <th class="p-4 text-right">Actions</th>
@@ -138,6 +155,7 @@
                                     <td class="hidden p-4 text-center font-medium sm:table-cell" x-text="item.cap"></td>
                                     <td class="whitespace-nowrap p-4 text-center font-medium" x-text="item.admis?.toLocaleString('fr-FR') ?? 'N/D'"></td>
                                     <td class="whitespace-nowrap p-4 text-center" x-text="formatAccessRate(item)"></td>
+                                    <td class="whitespace-nowrap p-4 text-center" x-text="formatParkRatio(item)"></td>
                                     <td class="p-4 text-center">
                                         <span class="inline-flex flex-col items-center rounded-full px-2.5 py-1 text-xs font-bold" :class="item.rang_mentions === null ? 'bg-slate-100 text-slate-500' : 'bg-emerald-100 text-emerald-800'">
                                             <span x-text="formatRank(item)"></span>
@@ -192,7 +210,7 @@
                             <div class="text-lg font-bold text-slate-900" x-text="`${selectedItem.admis?.toLocaleString('fr-FR') ?? 'N/D'} / ${selectedItem.cap?.toLocaleString('fr-FR') ?? 'N/D'}`"></div>
                         </div>
                         <div class="bg-slate-50 p-3 rounded-xl border">
-                            <div class="text-xs text-slate-500 font-medium">Rang mentions</div>
+                            <div class="text-xs text-slate-500 font-medium">ParkRanking</div>
                             <div class="text-lg font-bold text-indigo-600" x-text="formatRank(selectedItem)"></div>
                             <div class="text-xs text-slate-500" x-show="selectedItem.score_mentions != null" x-text="formatScore(selectedItem.score_mentions)"></div>
                         </div>
@@ -224,7 +242,7 @@
                                 <p class="text-xs font-semibold uppercase text-sky-700">Formation comparée</p>
                                 <p class="text-sm font-bold text-slate-800" x-text="comparisonItem && comparisonItem.etab"></p>
                                 <p class="text-xs text-slate-600" x-text="comparisonItem && comparisonItem.ville + ' — ' + comparisonItem.filiere"></p>
-                                <p class="text-xs text-slate-600" x-text="comparisonItem && ('Rang mentions : ' + formatRank(comparisonItem) + (comparisonItem.score_mentions != null ? ' · ' + formatScore(comparisonItem.score_mentions) : ''))"></p>
+                                <p class="text-xs text-slate-600" x-text="comparisonItem && ('ParkRanking : ' + formatRank(comparisonItem) + (comparisonItem.score_mentions != null ? ' · ' + formatScore(comparisonItem.score_mentions) : ''))"></p>
                             </div>
                             <button @click="clearComparison()" class="shrink-0 rounded px-2 py-1 text-xs font-semibold text-sky-800 hover:bg-sky-100">Retirer</button>
                         </div>
@@ -261,6 +279,7 @@
                 sortKey: 'rang_mentions',
                 sortDirection: 'asc',
                 levelInfoOpen: false,
+                accessInfoOpen: false,
                 modalOpen: false,
                 selectedItem: null,
                 comparisonSearch: '',
@@ -323,6 +342,7 @@
                     const sortValue = item => {
                         if (this.sortKey === 'etablissement') return `${item.etab} ${item.ville}`;
                         if (this.sortKey === 'taux_acces') return this.accessRateValue(item);
+                        if (this.sortKey === 'park_ratio') return this.parkRatioValue(item);
                         return item[this.sortKey];
                     };
                     return [...this.filteredFormations].sort((left, right) => {
@@ -385,6 +405,16 @@
                     if (item.admis != null && item.admis < item.threshold_size) return 'NA';
                     const value = this.accessRateValue(item);
                     return value == null ? 'N/D' : value.toLocaleString('fr-FR', { maximumFractionDigits: 2 }) + ' %';
+                },
+
+                parkRatioValue(item) {
+                    if (item.voeux == null || item.voeux < 0 || item.admis == null || item.admis <= 0) return null;
+                    return item.voeux / item.admis;
+                },
+
+                formatParkRatio(item) {
+                    const value = this.parkRatioValue(item);
+                    return value == null ? 'N/D' : value.toLocaleString('fr-FR', { maximumFractionDigits: 2 });
                 },
 
                 get comparisonMatches() {
