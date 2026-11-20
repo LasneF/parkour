@@ -17,6 +17,17 @@ ADMISSION_COLUMNS = (
     "acc_tot",
 )
 
+CHOICE_COLUMNS = {
+    "classes": (
+        "Effectif total des candidats classés par l’établissement en phase principale",
+        "Effectif total des candidats classés par l'établissement en phase principale",
+    ),
+    "propositions": (
+        "Effectif total des candidats ayant reçu une proposition d’admission de la part de l’établissement",
+        "Effectif total des candidats ayant reçu une proposition d'admission de la part de l'établissement",
+    ),
+}
+
 COLUMN_ALIASES = {
     "etab": ("Établissement", "g_ea_lib"),
     "ville": (
@@ -94,6 +105,8 @@ def resolve_columns(fieldnames):
         (name for name in BOURSIER_COLUMNS if name in fieldnames), None
     )
     columns["admis"] = next((name for name in ADMISSION_COLUMNS if name in fieldnames), None)
+    for field, aliases in CHOICE_COLUMNS.items():
+        columns[field] = next((name for name in aliases if name in fieldnames), None)
     columns["taux_acces"] = next(
         (name for name in TAUX_ACCES_COLUMNS if name in fieldnames), None
     )
@@ -212,6 +225,11 @@ def process_parcoursup():
             voeux = first_non_empty(row, columns["voeux"])
             taux_column = columns["taux_acces"]
             taux_acces = first_non_empty(row, taux_column) if taux_column else ""
+            choice_counts = {}
+            for field in CHOICE_COLUMNS:
+                column = columns[field]
+                value = first_non_empty(row, column) if column else ""
+                choice_counts[field] = clean_num(value, column, row_number) if value else None
             mentions = {}
             for mention, column in columns["mentions"].items():
                 value = first_non_empty(row, column) if column else ""
@@ -240,6 +258,7 @@ def process_parcoursup():
                         first_non_empty(row, "Lien de la formation sur la plateforme Parcoursup", "lien_form_psup")
                     ),
                     "voeux": clean_num(voeux, columns["voeux"], row_number) if voeux else None,
+                    **choice_counts,
                     "taux_acces": (
                         clean_num(taux_acces, taux_column, row_number, is_float=True)
                         if taux_column and taux_acces else None

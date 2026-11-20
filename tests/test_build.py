@@ -23,10 +23,12 @@ class FormationDetailsTests(unittest.TestCase):
                     "Effectif total des candidats ayant accepté la proposition de l’établissement (admis)",
                     "Lien de la formation sur la plateforme Parcoursup",
                     "Taux d’accès",
+                    "Effectif total des candidats classés par l’établissement en phase principale",
+                    "Effectif total des candidats ayant reçu une proposition d’admission de la part de l’établissement",
                 ])
-                writer.writerow(["Lycée A", "Paris", "Paris", "BTS", 1000, 1300, 2025, 720, link, "28,5"])
-                writer.writerow(["Lycée B", "Lyon", "Lyon", "BTS", 15, 40, 2025, 0, "", "0"])
-                writer.writerow(["Lycée C", "Nice", "Nice", "BTS", 20, "", "", "", "https://parcoursup.fr.example.org", ""])
+                writer.writerow(["Lycée A", "Paris", "Paris", "BTS", 1000, 1300, 2025, 720, link, "28,5", 900, 850])
+                writer.writerow(["Lycée B", "Lyon", "Lyon", "BTS", 15, 40, 2025, 0, "", "0", 0, 0])
+                writer.writerow(["Lycée C", "Nice", "Nice", "BTS", 20, "", "", "", "https://parcoursup.fr.example.org", "", "", ""])
             with patch.object(build, "CSV_FILE", source), patch.object(build, "JSON_OUTPUT", output):
                 build.process_parcoursup()
             rows = json.loads(output.read_text(encoding="utf-8"))
@@ -37,7 +39,15 @@ class FormationDetailsTests(unittest.TestCase):
         )
         self.assertEqual([row["voeux"] for row in rows], [1300, 40, None])
         self.assertEqual([row["taux_acces"] for row in rows], [28.5, 0, None])
+        self.assertEqual([row["classes"] for row in rows], [900, 0, None])
+        self.assertEqual([row["propositions"] for row in rows], [850, 0, None])
         self.assertEqual([row["threshold_size"] for row in rows], [10, 10, 10])
+
+    def test_choice_counts_are_optional_when_columns_are_absent(self):
+        fields = [aliases[0] for aliases in build.COLUMN_ALIASES.values()]
+        columns = build.resolve_columns(fields)
+        self.assertIsNone(columns["classes"])
+        self.assertIsNone(columns["propositions"])
 
 
 class MentionRankingTests(unittest.TestCase):
