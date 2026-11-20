@@ -116,7 +116,7 @@ class MentionRankingTests(unittest.TestCase):
         assign_mention_ranks(formations)
 
         self.assertEqual([item["rang_mentions"] for item in formations], [None, None, None, 1, 1])
-        self.assertEqual([item["score_mentions"] for item in formations], [100, 100, 100, 50, 50])
+        self.assertEqual([item["score_mentions"] for item in formations], [None, None, None, 50, 50])
 
 
 if __name__ == "__main__":

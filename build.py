@@ -169,11 +169,12 @@ def mention_score(mentions):
 def assign_mention_ranks(formations):
     ranked = []
     for formation in formations:
-        score = mention_score(formation["mentions"])
+        admis = formation["admis"]
+        score = mention_score(formation["mentions"]) if admis is not None and admis >= THRESHOLD_SIZE else None
         formation["score_mentions"] = score
         formation["rang_mentions"] = None
         formation["threshold_size"] = THRESHOLD_SIZE
-        if score is not None and formation["admis"] is not None and formation["admis"] >= THRESHOLD_SIZE:
+        if score is not None:
             ranked.append((score, formation))
 
     ranked.sort(key=lambda entry: entry[0], reverse=True)
